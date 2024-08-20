@@ -2,6 +2,14 @@ import os
 import platform
 from telethon import TelegramClient
 import asyncio
+from flask import Flask, render_template
+
+flask_app = Flask('TGCleaner')
+
+dialogs_raw = []
+api_id = 12345
+api_hash = 'abcdefghi'
+client = TelegramClient('my', api_id, api_hash)
 
 ASCII_art = """\
       _____ ___  ___ _
@@ -10,12 +18,29 @@ ASCII_art = """\
        |_| \___|\___|_\___\__,_|_||_\___|_|
     """
 
-
 def clear_console():
     if platform.system() == "Windows":
         os.system('cls')
     else:
         os.system('clear')
+@flask_app.route('/')
+def index():
+    dialogs = {
+        'chats': [],
+        'groups': [],
+        'channels': []
+    }
+
+    for dialog in dialogs_raw:
+        if dialog.is_user:
+            dialogs['chats'].append(dialog)
+        elif dialog.is_group:
+            dialogs['groups'].append(dialog)
+        elif dialog.is_channel:
+            dialogs['channels'].append(dialog)
+    print(dialogs['chats'][0])
+    return render_template('home.html', dialogs=dialogs)
+
 
 def request_api_credentials(api_id, api_hash):
     try:
@@ -32,45 +57,24 @@ async def main():
 
     print("Visit https://docs.telethon.dev/en/stable/basic/signing-in.html for more information on how to obtain free Telegram API credentials.")
 
-    api_id = 123456
-    api_hash = "default"
     #request_api_credentials(api_id, api_hash)
 
     # Crea una sessione per il client
-    client = TelegramClient('my', api_id, api_hash)
 
     try:
         # Avvia il client
         await client.start()
         clear_console()
-        print("Client started successfully.")
-
-        # Stampa il tuo numero di telefono per confermare la connessione
         me = await client.get_me()
         print(f'Logged in as {me.username}')
+        print("Starting Server...")
 
-        dialogs = []
         async for dialog in client.iter_dialogs():
-            dialogs.append(dialog)
+            dialogs_raw.append(dialog)
 
-        print(f"{len(dialogs)} dialogs found")
-        print("Chats")
-        for chat in dialogs:
-            if chat.is_user:
-                if chat.title != '':
-                    print(f"Name: {chat.title}")
-                else:
-                    print("Name: Deleted Account")
+        flask_app.run(debug=False, host='localhost', port=5123)
 
-        print("Groups")
-        for group in dialogs:
-            if group.is_group:
-                print(f"Title: {group.title}, Name: {group.name}")
-
-        print("Channels")
-        for channel in dialogs:
-            if channel.is_channel:
-                print(f"Title: {channel.title}, Name: {channel.name}")
+    
 
     except Exception as e:
         print(f"An error occurred: {e}")
